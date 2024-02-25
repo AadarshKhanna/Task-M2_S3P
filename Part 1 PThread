@@ -1,0 +1,76 @@
+#include <chrono>
+#include <cstdlib>
+#include <iostream>
+#include <pthread.h>
+#include <time.h>
+
+using namespace std::chrono;
+using namespace std;
+
+struct ThreadData {
+    int* v1;
+    int* v2;
+    int* v3;
+    int start;
+    int end;
+};
+
+void randomVector(int vector[], int size) {
+    for (int i = 0; i < size; i++) {
+        vector[i] = rand() % 100;
+    }
+}
+
+void* parallelVectorAddition(void* arg) {
+    ThreadData* data = static_cast<ThreadData*>(arg);
+
+    for (int i = data->start; i < data->end; i++) {
+        data->v3[i] = data->v1[i] + data->v2[i];
+    }
+
+    pthread_exit(NULL);
+}
+
+int main() {
+    unsigned long size = 100000000;
+    srand(time(0));
+    int* v1 = (int*)malloc(size * sizeof(int));
+    int* v2 = (int*)malloc(size * sizeof(int));
+    int* v3 = (int*)malloc(size * sizeof(int));
+    randomVector(v1, size);
+    randomVector(v2, size);
+
+    int numThreads = 4; // Number of threads as needed
+    pthread_t threads[numThreads];
+    ThreadData threadData[numThreads];
+
+    auto start = high_resolution_clock::now();
+
+    // Creatinng threads
+    for (int i = 0; i < numThreads; i++) {
+        threadData[i].v1 = v1;
+        threadData[i].v2 = v2;
+        threadData[i].v3 = v3;
+        threadData[i].start = i * (size / numThreads);
+        threadData[i].end = (i + 1) * (size / numThreads);
+
+        pthread_create(&threads[i], NULL, parallelVectorAddition, (void*)&threadData[i]);
+    }
+
+    // Join threads
+    for (int i = 0; i < numThreads; i++) {
+        pthread_join(threads[i], NULL);
+    }
+
+    auto stop = high_resolution_clock::now();
+    auto duration = duration_cast<microseconds>(stop - start);
+
+    cout << "Time taken by function: " << duration.count() << " microseconds" << endl;
+
+    // Freeing allocated memory
+    free(v1);
+    free(v2);
+    free(v3);
+
+    return 0;
+}
